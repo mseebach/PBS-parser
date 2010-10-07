@@ -3,13 +3,13 @@ from datetime import datetime
 
 
 class Field:
-    filler = False
 
     def __init__(self, name, start, length, out_format):
-        self.name = name;
-        self.start = start;
-        self.length = length;
-        self.out_format = out_format;
+        self.name = name
+        self.start = start
+        self.length = length
+        self.out_format = out_format
+        self.hidden_field = False
 
     def get_string(self, value):
         out = value.format(out_format)
@@ -19,6 +19,13 @@ class Field:
                                       form=out,
                                       val=value))
         return out
+
+    def hide(self):
+        self.hidden_field = True
+        return self
+
+    def is_hidden(self):
+        return self.hidden_field
 
     def get(self):
         return self.value
@@ -69,9 +76,9 @@ class DateField(Field):
 
 
 class FillerField(Field):
-    filler = True
     def __init__(self, char, start, length):
         Field.__init__(self, "filler", start, length, "{0:s}")
+        self.hide()
         self.value = ""
 
 

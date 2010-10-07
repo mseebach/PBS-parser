@@ -1,7 +1,22 @@
 from fields import StringField, IntField, DateField, FillerField
 
+class RecordType(object):
+    def __init__(self,name):
+        self.name = name
+
+    def __str__(self):
+        return self.name
+
+
 class Record(object):
     recordTypeMap = { }
+
+    DELIVERY_START = RecordType("Delivery start")
+    DELIVERY_END =   RecordType("Delivery end")
+    SECTION_START =  RecordType("Section start")
+    SECTION_END =    RecordType("Section end")
+    PAYLOAD =        RecordType("Payload")
+    NOT_IMPLEMENTED = RecordType("Not implemented")
 
     @staticmethod
     def registerRecordType(type,lmbda):
@@ -31,19 +46,22 @@ class PayloadRecord(object):
 
 
 class PBSParseException(Exception):
-    line = ""
         
-    def __init__(self, line):
-        self.line = line
+    def __init__(self, message):
+        self.message = message
 
+    def __str__(self):
+        return "PBSParseException: "+self.message
 
 class RecordImpl(object):
-    isImplemented = True
 
     def __init__(self,line):
         self.init_fields()
         self.line = line
         self.parse()
+
+    def is_type(self, type):
+        return type in self.__class__.recordType
 
     def update_fields(self, fields):
         self.init_fields()
@@ -52,17 +70,25 @@ class RecordImpl(object):
     def init_fields(self):
         if (not hasattr(self,"fields")):
             self.fields = dict(
-                systemId   = StringField("SystemID",  0,2),
-                recordType = IntField   ("RecordType",2,3)
+                systemId   = StringField("SystemID",  0,2).hide(),
+                recordType = IntField   ("RecordType",2,3).hide()
                 )
 
     def parse(self):
         for (key,field) in self.fields.items():
             slice = self.line[field.start:field.start+field.length]
             field.set(slice)
-            self.__dict__[key] = field.get()
         return self
 
+    def __getattr__(self,field):
+        if self.__dict__["fields"].has_key(field):
+            return self.fields[field].get()
+
+        if self.__dict__.has_key("end_record") and self.__dict__["end_record"].__dict__["fields"].has_key(field):
+            return self.__dict__["end_record"].__dict__["fields"][field].get()
+
+        raise AttributeError("{cls} does not have attribute {atr}".format(cls=self.__class__.__name__, atr=field))
+            
     def sorted_fields(self):
         return sorted((field,key) for (key,field) in self.fields.items())
 
@@ -72,7 +98,7 @@ class RecordImpl(object):
     def __str__(self):
         out = "{0}: ".format(self.get_name())
         for (field,key) in self.sorted_fields():
-            out += "{fld}: {val}/".format(fld = field.name, val = self.__dict__[key]) if not field.filler else ""
+            out += "{fld}: {val}/".format(fld = field.name, val = getattr(self,key)) if not field.is_hidden() else ""
         return out
 
     def generate_line(self):
@@ -83,11 +109,11 @@ class RecordImpl(object):
         return out
 
 class NotImplementedRecord(RecordImpl):
-    isImplemented = False
+    recordType = [Record.NOT_IMPLEMENTED]
     pass
 
 class PayloadRecordImpl(RecordImpl):
-    isImplemented = True
+    recordType = [Record.PAYLOAD]
 
     def __init__(self,line):
         self.update_fields(dict (
@@ -98,28 +124,57 @@ class PayloadRecordImpl(RecordImpl):
 
         RecordImpl.__init__(self,line)
 
+    def get_amount(self):  # override for payload records that define an amount
+        return 0
+
+
 class NotImplementedPayloadRecord(PayloadRecordImpl):
-    isImplemented = False
+    recordType = [Record.NOT_IMPLEMENTED, Record.PAYLOAD]
     pass
 
-class DeliveryStartRecord(RecordImpl):
-    Record.registerRecordType(2, lambda line: DeliveryStartRecord(line))
+class DeliveryRecord(RecordImpl):
+    Record.registerRecordType(2, lambda line: DeliveryRecord(line))
+
+    recordType = [Record.DELIVERY_START]
 
     def __init__(self,line):
         self.update_fields(dict (
-                dataSupplCVR  = IntField    ("Data Supplier CVR", 5, 8),
-                systemCode    = StringField ("System code",  13,3),
+                dataSupplCVR  = IntField    ("Data Supplier CVR", 5, 8).hide(),
+                systemCode    = StringField ("System code",  13,3).hide(),
                 deliveryType  = IntField    ("Delivery type",16,4),
                 deliveryID    = IntField    ("Delivery ID",20,10),
                 filler1       = FillerField (" ", 30, 19),
-                dateCancelled = DateField   ("Creation date", 49),
+                createdDate   = DateField   ("Creation date", 49),
                 filler2       = FillerField (" ", 55, 73)
                 ) )
 
         RecordImpl.__init__(self,line)
 
-class SectionStartRecord(RecordImpl):
-    Record.registerRecordType(12, lambda line: SectionStartRecord(line))
+        self.sections = []
+        self.control_amount = 0
+        self.control_payload_record_count = 0
+
+    def append(self, section):
+        self.sections.append(section)
+        self.control_amount += section.controlAmount
+        self.control_payload_record_count += section.payload_count()
+
+    def end(self, end_delivery_record):
+        self.end_record = end_delivery_record
+        if self.end_record.controlAmount != self.control_amount:
+            raise PBSParseException("Control amount does not match, control says to expect {expected}, but I had {actual}"
+                                    .format(expected=self.end_record.controlAmount,
+                                            actual=self.control_amount))
+        if self.end_record.numberOfPayloadRecords != self.control_payload_record_count:
+            raise PBSParseException("Control payload record count does not match, control says to expect {expected}, but I counted {actual}"
+                                    .format(expected=self.end_record.numberOfPayloadRecords,
+                                            actual=self.control_payload_record_count))
+
+
+class SectionRecord(RecordImpl):
+    Record.registerRecordType(12, lambda line: SectionRecord(line))
+
+    recordType = [Record.SECTION_START]
 
     def __init__(self,line):
         self.update_fields(dict (
@@ -135,8 +190,31 @@ class SectionStartRecord(RecordImpl):
 
         RecordImpl.__init__(self,line)
 
+        self.payload = []
+        self.control_amount = 0
+
+    def payload_count(self):
+        return len(self.payload);
+
+    def append(self, payload):
+        self.payload.append(payload)
+        self.control_amount += payload.get_amount()
+
+    def end(self, end_section_record):
+        self.end_record = end_section_record
+        if self.end_record.controlAmount != self.control_amount:
+            raise PBSParseException("Control amount does not match, control says to expect {expected}, but I had {actual}"
+                                    .format(expected=end_record.controlAmount,
+                                            actual=self.control_amount))
+        if self.end_record.numberOfPayloadRecords != self.payload_count():
+            raise PBSParseException("Control payload record count does not match, control says to expect {expected}, but I counted {actual}"
+                                    .format(expected=end_record.numberOfPayloadRecords,
+                                            actual=self.payload_count()))
+
 class SectionEndRecord(RecordImpl):
     Record.registerRecordType(92, lambda line: SectionEndRecord(line))
+
+    recordType = [Record.SECTION_END]
 
     def __init__(self,line):
         self.update_fields(dict (
@@ -146,7 +224,7 @@ class SectionEndRecord(RecordImpl):
                 debtorGroup   = IntField    ("Debtor Group",  20, 5),
                 filler2       = FillerField (" ", 25, 6),
                 numberOfPayloadRecords = IntField("Number of Payload records",  31,11),
-                filler3       = FillerField ("0", 42, 15),
+                controlAmount = IntField    ("Control amount", 42, 15),
                 filler4       = FillerField ("0", 57, 11),
                 filler5       = FillerField (" ", 68, 15),
                 filler6       = FillerField ("0", 83, 11),
@@ -158,6 +236,8 @@ class SectionEndRecord(RecordImpl):
 class DeliveryEndRecord(RecordImpl):
     Record.registerRecordType(992, lambda line: DeliveryEndRecord(line))
 
+    recordType = [Record.DELIVERY_END]
+
     def __init__(self,line):
         self.update_fields(dict (
                 dataSupplCVR  = IntField    ("Data Supplier CVR", 5, 8),
@@ -165,7 +245,7 @@ class DeliveryEndRecord(RecordImpl):
                 deliveryType  = IntField    ("Delivery type",16,4),
                 numberOfSections = IntField ("Number of Sections",20,11),
                 numberOfPayloadRecords = IntField("Number of Payload records",  31,11),
-                payloadAmount = IntField("Payload amount", 42,15),
+                controlAmount = IntField("Payload amount", 42,15),
                 filler3       = FillerField ("0", 57, 71)
                 ) )
 
@@ -174,6 +254,8 @@ class DeliveryEndRecord(RecordImpl):
 
 class ActivePaymentAgreementRecord(PayloadRecordImpl):
     PayloadRecord.registerRecordType(230, lambda line : ActivePaymentAgreementRecord(line))
+
+    recordType = [Record.PAYLOAD]
 
     def __init__(self,line):
         self.update_fields(dict (
@@ -191,6 +273,8 @@ class ActivePaymentAgreementRecord(PayloadRecordImpl):
 
 class PaymentAgreementRegisteredRecord(PayloadRecordImpl):
     PayloadRecord.registerRecordType(231, lambda line : PaymentAgreementRegisteredRecord(line))
+
+    recordType = [Record.PAYLOAD]
 
     def __init__(self,line):
         self.update_fields(dict (
@@ -212,6 +296,8 @@ class PaymentCancelledRecord(PayloadRecordImpl):
     CREDITOR = "creditor"
     BS = "betalingsservice"
     causes = [BANK,CREDITOR,BS] 
+
+    recordType = [Record.PAYLOAD]
 
     PayloadRecord.registerRecordType(232, lambda line : PaymentCancelledRecord(line, PaymentCancelledRecord.BANK))
     PayloadRecord.registerRecordType(233, lambda line : PaymentCancelledRecord(line, PaymentCancelledRecord.CREDITOR))
@@ -239,6 +325,8 @@ class PaymentByPaymentSlipCompletedRecord(PayloadRecordImpl):
 
     PayloadRecord.registerRecordType(297, lambda line : PaymentByPaymentSlipCompletedRecord(line))
 
+    recordType = [Record.PAYLOAD]
+
     def __init__(self,line):
         self.update_fields(dict (
                 filler1       = FillerField ("0", 17, 3),
@@ -260,3 +348,6 @@ class PaymentByPaymentSlipCompletedRecord(PayloadRecordImpl):
                )) 
 
         RecordImpl.__init__(self,line)
+
+    def get_amount(self):
+        return self.amount

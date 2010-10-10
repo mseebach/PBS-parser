@@ -150,12 +150,15 @@ class DeliveryRecord(RecordImpl):
 
         RecordImpl.__init__(self,line)
 
-        self.sections = []
+        self._sections = []
         self.control_amount = 0
         self.control_payload_record_count = 0
 
+    def sections(self):
+        return self._sections
+
     def append(self, section):
-        self.sections.append(section)
+        self._sections.append(section)
         self.control_amount += section.controlAmount
         self.control_payload_record_count += section.payload_count()
 
@@ -190,14 +193,17 @@ class SectionRecord(RecordImpl):
 
         RecordImpl.__init__(self,line)
 
-        self.payload = []
+        self._payload = []
         self.control_amount = 0
 
     def payload_count(self):
-        return len(self.payload);
+        return len(self.payload());
+
+    def payload(self):
+        return self._payload
 
     def append(self, payload):
-        self.payload.append(payload)
+        self._payload.append(payload)
         self.control_amount += payload.get_amount()
 
     def end(self, end_section_record):
@@ -268,7 +274,7 @@ class ActivePaymentAgreementRecord(PayloadRecordImpl):
                 filler2       = FillerField (" ", 61, 67),
                )) 
 
-        RecordImpl.__init__(self,line)
+        PayloadRecordImpl.__init__(self,line)
 
 
 class PaymentAgreementRegisteredRecord(PayloadRecordImpl):
@@ -287,7 +293,7 @@ class PaymentAgreementRegisteredRecord(PayloadRecordImpl):
                 filler2       = FillerField (" ", 61, 67),
                )) 
 
-        RecordImpl.__init__(self,line)
+        PayloadRecordImpl.__init__(self,line)
 
 
 class PaymentCancelledRecord(PayloadRecordImpl):
@@ -315,7 +321,7 @@ class PaymentCancelledRecord(PayloadRecordImpl):
                 filler2       = FillerField (" ", 61, 67),
                )) 
 
-        RecordImpl.__init__(self,line)
+        PayloadRecordImpl.__init__(self,line)
 
     def get_name(self):
         return self.__class__.__name__ + " (cause: "+self.cause+")"
@@ -347,7 +353,7 @@ class PaymentByPaymentSlipCompletedRecord(PayloadRecordImpl):
 
                )) 
 
-        RecordImpl.__init__(self,line)
+        PayloadRecordImpl.__init__(self,line)
 
     def get_amount(self):
         return self.amount

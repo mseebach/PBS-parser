@@ -51,6 +51,11 @@ class PBSParser(object):
         self.transaction_codes_filter(231)
         self.each(lmbda)
 
+    def all_slip_payments_exec(self, lmbda):
+        self.clear_filters()
+        self.transaction_codes_filter(297)
+        self.each(lmbda)
+
     def all_cancelations_exec(self, lmbda):
         self.clear_filters()
         self.transaction_codes_filter(232,233,234)

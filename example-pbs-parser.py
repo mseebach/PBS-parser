@@ -14,5 +14,10 @@ def reg(rec):
 def cancel(rec):
     print rec.cause,"cancelled agreement",rec.agreementId,"for customer",rec.customerId,"on",rec.dateCancelled
 
+def print_record(rec):
+     print rec
+
 parser.all_registrations_exec(reg)
 parser.all_cancelations_exec(cancel)
+
+parser.all_exec(print_record)

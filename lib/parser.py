@@ -1,4 +1,6 @@
 from records import Record, PBSParseException
+import deliveryrecords
+import sectionrecords
 
 # Docs:
 # Payment information - general: http://www.pbs.dk/da/produkter/betalingsservice/Documents/BS_vejledning_DL_0602_generel_EN.pdf
@@ -59,6 +61,10 @@ class PBSParser(object):
     def all_cancelations_exec(self, lmbda):
         self.clear_filters()
         self.transaction_codes_filter(232,233,234)
+        self.each(lmbda)
+
+    def all_exec(self, lmbda):
+        self.clear_filters()
         self.each(lmbda)
 
     def each(self, lmbda):

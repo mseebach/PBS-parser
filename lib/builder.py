@@ -81,12 +81,13 @@ class SectionBuilder(object):
         self.creditorBankReg=creditorBankReg
         self.creditorBankAcct=creditorBankAcct
         self.mainTextLine=mainTextLine
-
+        self.recordCounter = 1
         self.section = self.start_record()
 
     def due_automatic_payment(self,customerId,agreementId,dueDate,amount):
         self.customerId = customerId
         self.agreementId = agreementId
+        self.recordCounter = 1
 
         rec = DuePaymentRecord()
         rec.creditorPbsNumber = self.delivery.creditorPbsNumber
@@ -101,11 +102,14 @@ class SectionBuilder(object):
     def text(self,txt):
         rec = PaymentTextRecord()
         rec.creditorPbsNumber = self.delivery.creditorPbsNumber
+        rec.recordNumber = self.recordCounter
         rec.debtorGroup = self.debtorGroup
         rec.customerId=self.customerId
         rec.agreementId=self.agreementId
         rec.text = txt
         self.section.append(rec)
+        
+        self.recordCounter += 1
 
     def start_record(self):
         rec = PaymentSectionRecord()
@@ -123,7 +127,11 @@ class SectionBuilder(object):
         rec.creditorPbsNumber = self.delivery.creditorPbsNumber
         rec.sectionType = self.section.sectionType
         rec.debtorGroup = self.debtorGroup
-        rec.numberOfPayloadRecords = self.section.payload_count()
+
+        rec.numberOfPaymentRecords = self.section.payload_count_type(42)
+        rec.numberOfAuxiliaryRecords = self.section.payload_count_type(52) + self.section.payload_count_type(62)
+        rec.numberOfDebtorInfoRecords = self.section.payload_count_type(22)
+
         rec.controlAmount = self.section.control_amount()
         self.section.end(rec)
 

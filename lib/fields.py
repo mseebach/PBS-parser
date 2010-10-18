@@ -69,7 +69,7 @@ class StringField(Field):
         return self.value.strip()
 
     def format(self):
-        return self.out_format.format(unicode(self.value, "utf-8").encode("iso-8859-1"))
+        return self.out_format.format(self.value.encode("iso-8859-1"))
 
 class DateField(Field):
     def __init__(self, name, start):

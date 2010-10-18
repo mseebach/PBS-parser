@@ -78,6 +78,8 @@ class PBSParser(object):
                 yield section
                 for payload in section.payload():
                     yield payload
+                yield section.end_record
+            yield delivery.end_record
 
     def parse(self,file):
         delivery = None

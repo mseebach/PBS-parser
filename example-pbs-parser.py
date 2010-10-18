@@ -20,4 +20,4 @@ def print_record(rec):
 parser.all_registrations_exec(reg)
 parser.all_cancelations_exec(cancel)
 
-parser.all_exec(print_record)
+#parser.all_exec(print_record)

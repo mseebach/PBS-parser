@@ -16,21 +16,12 @@ section_builder.due_automatic_payment(customerId=767,
                                       dueDate=datetime.datetime(2010,11,1),
                                       amount=15000)
 
-section_builder.text("Fee for your membership of FøøOrg East");
-
-delivery_builder.append(section_builder.build())
-
-
-section_builder = delivery_builder.payment_section(internalUserID="Members",
-                                                   creditorBankReg=4001,
-                                                   creditorBankAcct=4001235621,
-                                                   mainTextLine="Membership Fee 2010")
+section_builder.text(u"Fee for your membership of FøøOrg East");
 
 section_builder.due_automatic_payment(customerId=556,
                                       agreementId=998899881,
                                       dueDate=datetime.datetime(2010,11,1),
-                                      amount=7500
-                                      )
+                                      amount=7500)
 
 section_builder.text("Fee for your membership of FooOrg West");
 

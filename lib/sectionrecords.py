@@ -66,6 +66,25 @@ class SectionRecordImpl(RecordImpl):
                      self.payload_count_type(22))
 
 
+class AutomaticPaymentSectionRecord(SectionRecordImpl):
+    SectionRecord.registerSectionType(211, lambda line: AutomaticPaymentSectionRecord(line))
+
+    _recordType = [Record.SECTION_START]
+
+    def __init__(self,line=""):
+        self.update_fields(dict (
+                filler1       = FillerField (" ", 17, 3),
+                debtorGroup   = IntField    ("Debtor Group",  20, 5),
+                internalUserID= StringField ("User's ID with datasupplier",25,15),
+                filler2       = FillerField (" ", 40, 9),
+                dateCreated   = DateField   ("Creation date", 49),
+                filler3       = FillerField (" ", 55, 73)
+                ) )
+
+        SectionRecordImpl.__init__(self,line)
+
+        self.sectionType = 211
+
 class RegisteredCancelledPaymentSectionRecord(SectionRecordImpl):
     SectionRecord.registerSectionType(212, lambda line: RegisteredCancelledPaymentSectionRecord(line))
 

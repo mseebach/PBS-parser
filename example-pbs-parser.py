@@ -11,6 +11,9 @@ for file in sys.argv[1:]:
 def reg(rec):
     print "Customer",rec.customerId,"registered on",rec.dateInEffect,"agreement",rec.agreementId
 
+def auto(rec):
+    print "Customer",rec.customerId,"paid",rec.actualAmount/100,"on agreement",rec.agreementId
+
 def cancel(rec):
     print rec.cause,"cancelled agreement",rec.agreementId,"for customer",rec.customerId,"on",rec.dateCancelled
 
@@ -18,6 +21,7 @@ def print_record(rec):
      print rec
 
 parser.all_registrations_exec(reg)
+parser.all_automatic_payments_exec(auto)
 parser.all_cancelations_exec(cancel)
 
 #parser.all_exec(print_record)

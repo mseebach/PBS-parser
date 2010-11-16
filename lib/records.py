@@ -222,6 +222,89 @@ class PaymentCancelledRecord(PayloadRecordImpl):
         return self.__class__.__name__ + " (cause: "+self.cause+")"
 
 
+class AutomaticPaymentCompletedRecord(PayloadRecordImpl):
+
+    PayloadRecord.registerRecordType(42, 236, lambda line : AutomaticPaymentCompletedRecord(line))
+
+    _recordType = [Record.PAYLOAD]
+
+    def __init__(self,line):
+        self.update_fields(dict (
+                filler1       = FillerField ("0", 17, 3),
+                debtorGroup   = IntField    ("Debtor Group",  20, 5),
+                customerId    = IntField    ("Customer ID",  25,15),
+                agreementId   = IntField    ("Agreement ID", 40,9),
+                transactionDate= DateField  ("transaction date", 49),
+                signCode      = IntField    ("Sign code", 55,1),
+                amount        = IntField    ("Amount", 56,13),
+                creditorRef   = StringField ("Creditor Reference", 69,30),
+                filler2       = FillerField (" ", 99, 4),
+                actualPaymentDate = DateField("Actual payment date", 103),
+                bookPaymentDate = DateField ("Bookkeeping entry date", 109),
+                actualAmount  = IntField    ("Actual amount", 115,13)
+               )) 
+
+        PayloadRecordImpl.__init__(self,line)
+
+    def get_amount(self):
+        return self.amount
+
+class AutomaticPaymentRejectedRecord(PayloadRecordImpl):
+
+    PayloadRecord.registerRecordType(42, 237, lambda line : AutomaticPaymentRejectedRecord(line))
+
+    _recordType = [Record.PAYLOAD]
+
+    def __init__(self,line):
+        self.update_fields(dict (
+                filler1       = FillerField ("0", 17, 3),
+                debtorGroup   = IntField    ("Debtor Group",  20, 5),
+                customerId    = IntField    ("Customer ID",  25,15),
+                agreementId   = IntField    ("Agreement ID", 40,9),
+                transactionDate= DateField  ("transaction date", 49),
+                signCode      = IntField    ("Sign code", 55,1),
+                amount        = IntField    ("Amount", 56,13),
+                creditorRef   = StringField ("Creditor Reference", 69,30),
+                filler2       = FillerField (" ", 99, 4),
+                actualPaymentDate = DateField("Actual payment date", 103),
+                bookPaymentDate = DateField ("Bookkeeping entry date", 109),
+                actualAmount  = IntField    ("Actual amount", 115,13)
+               )) 
+
+        PayloadRecordImpl.__init__(self,line)
+
+    def get_amount(self):
+        return self.actualAmount
+
+
+class AutomaticPaymentCancelledRecord(PayloadRecordImpl):
+
+    PayloadRecord.registerRecordType(42, 238, lambda line : AutomaticPaymentCancelledRecord(line))
+
+    _recordType = [Record.PAYLOAD]
+
+    def __init__(self,line):
+        self.update_fields(dict (
+                filler1       = FillerField ("0", 17, 3),
+                debtorGroup   = IntField    ("Debtor Group",  20, 5),
+                customerId    = IntField    ("Customer ID",  25,15),
+                agreementId   = IntField    ("Agreement ID", 40,9),
+                transactionDate= DateField  ("transaction date", 49),
+                signCode      = IntField    ("Sign code", 55,1),
+                amount        = IntField    ("Amount", 56,13),
+                creditorRef   = StringField ("Creditor Reference", 69,30),
+                filler2       = FillerField (" ", 99, 4),
+                actualPaymentDate = DateField("Actual payment date", 103),
+                bookPaymentDate = DateField ("Bookkeeping entry date", 109),
+                actualAmount  = IntField    ("Actual amount", 115,13)
+               )) 
+
+        PayloadRecordImpl.__init__(self,line)
+
+    def get_amount(self):
+        return self.actualAmount
+
+
 class PaymentByPaymentSlipCompletedRecord(PayloadRecordImpl):
 
     PayloadRecord.registerRecordType(42, 297, lambda line : PaymentByPaymentSlipCompletedRecord(line))
